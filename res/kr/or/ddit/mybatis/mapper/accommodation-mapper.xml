@@ -1,0 +1,427 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="Accom">
+
+	<!-- 숙박업체 등록 -->
+	<insert id="acInsert"
+		parameterType="kr.or.ddit.middle.vo.AccommodationVO">
+		insert into accommodation (a_code, a_name, a_addr,
+		a_tel, a_wnum, a_entime, a_extime, a_type)
+		values('JJAC23' || lpad(acc_seq.nextval,4,'0'),#{a_name},#{a_addr},#{a_tel}
+		,0,#{a_entime},#{a_extime},#{a_type})
+	</insert>
+
+	<!-- 지역, 인원에따른 숙박업체 검색 -->
+	<select id="acSearch"
+		parameterType="kr.or.ddit.middle.vo.Search_AccomVO"
+		resultType="kr.or.ddit.middle.vo.Search_AccomVO">
+		<![CDATA[
+		select a.a_code, a.a_name, a.a_addr, a.a_tel, a.a_wnum,	a.a_entime,
+		a.a_extime, p.pt_sfile, min(p.pt_code) as min_pt_code
+		from accommodation a
+		join room r on a.a_code = r.a_code
+		join photo p on a.a_code = p.pt_sfile
+		where r.r_inven >= #{r_inven} and a.a_addr =#{a_addr} 
+		and r.r_min >= #{r_min} and r.r_max <=#{r_max}
+		group by a.a_code, a.a_name, a.a_addr, a.a_tel, a.a_wnum, a.a_entime,
+		a.a_extime,	p.pt_sfile
+		]]>
+	</select>
+
+	<!-- 검색 기능을 통해 조회된 숙박업체이면서 필터기능을 통한 숙박업체 조회 -->
+	<select id="acSearchFilter" parameterType="MemberVO"
+		resultType="kr.or.ddit.middle.vo.Search_AccomVO">
+	<![CDATA[
+		SELECT A.A_CODE, A.A_NAME, A.A_ADDR, A.A_TEL, A.A_WNUM, A.A_ENTIME, A.A_EXTIME, P.PT_SFILE
+		FROM ACCOMMODATION A, ROOM R, PHOTO P, SERVICE_LIST SL
+		WHERE R.R_INVEN >= #{r_inven} AND A.A_CODE = R.A_CODE AND A.A_CODE=P.PT_SFILE AND R.A_CODE = P.PT_SFILE
+		AND A.A_TYPE='호텔' AND A.A_ADDR = #{a_addr} AND R.R_MIN >= #{r_min} AND R.R_MAX <= #{r_max}
+		AND SL.A_CODE= A.A_CODE and SL.SI_CODE='JJSV01'
+			]]>
+	</select>
+
+	<!-- 숙박업체별 조회 -->
+	<select id="acCheck" parameterType="String"
+		resultType="kr.or.ddit.middle.vo.Search_AccomVO">
+		SELECT DISTINCT a.a_code, a.a_name, a.a_addr, a.a_tel, a.a_wnum, a.a_entime,
+		a.a_extime, a.a_type,
+		(SELECT r.r_price FROM room r WHERE r.a_code = a.a_code AND ROWNUM = 1) AS
+		r_price,
+		(select count(*) from
+		wishlist w where w.a_code=a.a_code and
+		w.mem_id=#{mem_id}) as cnt
+		FROM accommodation a
+		JOIN room r ON a.a_code = r.a_code
+		WHERE a.a_type = #{a_type}
+		order by a.a_code asc
+	</select>
+	
+	<select id="acCheckMem" parameterType="kr.or.ddit.middle.vo.Search_AccomVO"
+		resultType="kr.or.ddit.middle.vo.Search_AccomVO">
+		SELECT DISTINCT a.a_code, a.a_name, a.a_addr, a.a_tel, a.a_wnum, a.a_entime,
+		a.a_extime, a.a_type,
+		(SELECT r.r_price FROM room r WHERE r.a_code = a.a_code AND ROWNUM = 1) AS
+		r_price,
+		(select count(*) from
+		wishlist w where w.a_code=a.a_code and
+		w.mem_id=#{mem_id}) as cnt
+		FROM accommodation a
+		JOIN room r ON a.a_code = r.a_code
+		WHERE a.a_type = #{a_type}
+		order by a.a_code asc
+	</select>
+
+
+<select id="acServiceCheck"
+		parameterType="kr.or.ddit.middle.vo.Search_AccomVO"
+		resultType="kr.or.ddit.middle.vo.Search_AccomVO">
+		SELECT DISTINCT a.a_code, a.a_name, a.a_addr, a.a_tel, a.a_wnum, a.a_entime, a.a_extime, a.a_type,
+   		(SELECT r.r_price FROM room r WHERE r.a_code = a.a_code AND ROWNUM = 1) AS r_price
+		FROM accommodation a
+		JOIN room r ON a.a_code = r.a_code
+		JOIN (
+	    SELECT sl.a_code
+	    FROM service_list sl
+	    WHERE sl.si_code IN 
+	    <foreach collection="flist" item="arr" open="(" close=")"
+			separator=",">	
+			#{arr}
+		</foreach>
+	    GROUP BY sl.a_code
+	    HAVING COUNT(DISTINCT sl.si_code) = #{flistNum}
+		) s ON a.a_code = s.a_code
+		WHERE a.a_type = #{a_type}
+		ORDER BY a.a_code ASC
+	</select>
+	
+	
+	
+	
+		<select id="acServiceCheckMem"
+		parameterType="kr.or.ddit.middle.vo.Search_AccomVO"
+		resultType="kr.or.ddit.middle.vo.Search_AccomVO">
+		SELECT DISTINCT a.a_code, a.a_name, a.a_addr, a.a_tel, a.a_wnum, a.a_entime, a.a_extime, a.a_type,
+   		(SELECT r.r_price FROM room r WHERE r.a_code = a.a_code AND ROWNUM = 1) AS r_price,
+   		(select count(*) from
+		wishlist w where w.a_code=a.a_code and
+		w.mem_id=#{mem_id}) as cnt
+		FROM accommodation a
+		JOIN room r ON a.a_code = r.a_code
+		JOIN (
+	    SELECT sl.a_code
+	    FROM service_list sl
+	    WHERE sl.si_code IN 
+	    <foreach collection="flist" item="arr" open="(" close=")"
+			separator=",">	
+			#{arr}
+		</foreach>
+	    GROUP BY sl.a_code
+	    HAVING COUNT(DISTINCT sl.si_code) = #{flistNum}
+		) s ON a.a_code = s.a_code
+		WHERE a.a_type = #{a_type}
+		ORDER BY a.a_code ASC
+	</select>
+	
+	
+	
+		<select id="accomListCheck"
+		parameterType="kr.or.ddit.middle.vo.Search_AccomVO"
+		resultType="kr.or.ddit.middle.vo.Search_AccomVO">
+		SELECT a.a_code, a.a_name, a.a_addr, a.a_tel, a.a_wnum,
+		a.a_entime,
+		a.a_extime, a.a_type,
+		(SELECT r.r_price FROM room r WHERE
+		r.a_code =
+		a.a_code AND ROWNUM = 1) AS r_price,
+		(select count(*) from
+		wishlist w where w.a_code=a.a_code and
+		w.mem_id=#{mem_id}) as cnt
+		FROM
+		accommodation a
+		WHERE a.a_type =
+		#{a_type}
+		order by a.a_code asc
+	</select>
+
+
+
+
+
+	<!-- 숙박업체별 조회를 통해 조회된 숙박업체이면서 , 필터기능을 통한 숙박업체 조회 -->
+	<select id="acCheckFilter" parameterType="String"
+		resultType="kr.or.ddit.middle.vo.Search_AccomVO">
+		SELECT A.A_CODE, A.A_NAME, A.A_ADDR, A.A_TEL,A.A_WNUM,
+		A.A_ENTIME, A.A_EXTIME, P.PT_SFILE
+		FROM ACCOMMODATION A, PHOTO P,
+		SERVICE_LIST SL
+		WHERE A.A_CODE = P.PT_SFILE AND A.A_TYPE='호텔' AND
+		SL.A_CODE= A.A_CODE
+		AND SL.SI_CODE='JJSV01'
+	</select>
+
+	<!-- WISHLIST조회하기 -->
+	<select id="wishValueCheck"
+		parameterType="kr.or.ddit.middle.vo.WishListVO"
+		resultType="kr.or.ddit.middle.vo.WishListVO">
+		select count(*) from wishlist
+		where mem_id=#{mem_id} and
+		a_code=#{a_code}
+	</select>
+
+	<!-- wishlist 눌렀을때 있으면 삭제 -->
+	<delete id="wishListDelete"
+		parameterType="kr.or.ddit.middle.vo.WishListVO">
+		delete from wishlist
+		where mem_id=#{mem_id} and
+		a_code=#{a_code}
+	</delete>
+
+	<!--wishlist 없으면 추가 -->
+	<insert id="wishListInsert"
+		parameterType="kr.or.ddit.middle.vo.WishListVO">
+		insert into wishlist (mem_id, a_code) values (#{mem_id},
+		#{a_code})
+	</insert>
+
+	<!-- Room 등록 -->
+	<insert id="roomInsert"
+		parameterType="kr.or.ddit.middle.vo.RoomVO">
+		insert into ROOM (R_CODE, A_CODE, R_TYPE, R_MIN, R_MAX,
+		R_PRICE, R_INVEN)
+		values('JJRM23' || lpad(rom_seq.nextval,4,'0'),#{a_code},#{r_type},#{r_min},
+		#{r_max}, #{r_price}, #{r_inven})
+	</insert>
+
+	<!-- 객실 사진+정보 출력 -->
+	<select id="roomMainCheck" parameterType="String"
+		resultType="kr.or.ddit.middle.vo.View_PhotoVO">
+		SELECT R.R_CODE, R.A_CODE, R.R_TYPE, R.R_MIN, R.R_MAX,
+		R.R_PRICE, R.R_INVEN, P.PT_SFILE, P.PT_CODE
+		FROM ROOM R, PHOTO P
+		WHERE
+		R.R_CODE = P.PT_SFILE AND R.A_CODE = #{a_code} AND P.PT_CODE = (
+		SELECT MIN(PT_CODE) FROM PHOTO
+		WHERE PT_SFILE = R.R_CODE
+		)
+	</select>
+	
+	<!-- 호텔정보 -->
+	<select id="accomDetail" parameterType="String" resultType="kr.or.ddit.middle.vo.AccommodationVO">
+		select * from accommodation where a_code = #{a_code}
+	</select>
+
+<!-- 호텔사진리스트출력 -->
+	<select id="accomPhotoCheck" parameterType="String" resultType="kr.or.ddit.middle.vo.View_PhotoVO">
+	SELECT P.PT_file
+		FROM accommodation a, PHOTO P
+		WHERE P.PT_FILE like #{a_code}||'%' AND a.A_CODE = #{a_code}
+		ORDER BY P.PT_CODE
+	
+	</select>
+
+<!-- 객실정보 -->
+	<select id="roomDetail" parameterType="String" resultType="kr.or.ddit.middle.vo.RoomVO">
+		select * from room where a_code = #{a_code}
+	</select>
+
+	<!-- 객실사진만 출력 -->
+	<select id="roomPhotoCheck" parameterType="String" resultType="kr.or.ddit.middle.vo.View_PhotoVO">
+	SELECT P.PT_file
+		FROM room r, PHOTO P
+		WHERE P.PT_FILE =r.r_code AND r.r_CODE = #{r_code}
+		ORDER BY P.PT_CODE
+	</select>
+
+	<!-- 객실정보 수정 -->
+	<update id="roomUpdate"
+		parameterType="kr.or.ddit.middle.vo.RoomVO">
+		UPDATE ROOM SET R_TYPE=#{r_type}
+		WHERE R_CODE=#{r_code}
+	</update>
+
+	<!-- 객실삭제 -->
+	<delete id="roomDelete" parameterType="String">
+		delete from room where
+		a_code=#{a_code}
+	</delete>
+
+	<!-- 숙박업체 서비스 리스트 조회 -->
+	<select id="acServiceListCheck" parameterType="String"
+		resultType="kr.or.ddit.middle.vo.View_ServiceVO">
+		SELECT SL.SI_CODE, SI.SI_NAME
+		FROM SERVICE_INFO SI, SERVICE_LIST SL
+		WHERE SL.A_CODE = #{a_code} AND
+		SL.SI_CODE=SI.SI_CODE
+	</select>
+
+	<!-- 리뷰테이블 조회 -->
+	<select id="reviewCheck" parameterType="String"
+	resultType="kr.or.ddit.middle.vo.View_ReviewVO">
+		SELECT RV.MEM_ID, TO_CHAR(R.REV_DATE, 'YYYY.MM.DD') REV_DATE,R.REV_SCORE,
+		R.REV_TITLE, R.REV_CONTENT, P.PT_FILE, rm.A_CODE,R.REV_CODE,
+		CASE WHEN P.PT_FILE IS NULL THEN 0 ELSE 1 END AS CNT
+		FROM REVIEW R
+		JOIN RESERVATION RV ON RV.RES_CODE = R.RES_CODE
+		JOIN ROOM rm ON RV.R_CODE = rm.R_CODE
+		LEFT JOIN PHOTO P ON R.REV_CODE = P.PT_FILE
+		WHERE rm.A_CODE = #{a_code}
+		ORDER BY R.REV_CODE
+</select>
+
+	<!-- 리뷰 등록 1단계 -->
+	<insert id="reviewInsert"
+		parameterType="kr.or.ddit.middle.vo.View_ReviewVO">
+		insert into REVIEW (REV_CODE, RES_CODE, REV_DATE,
+		REV_SCORE, REV_TITLE, REV_CONTENT)
+		values('JJRV23' ||
+		lpad(rev_seq.nextval,4,'0'),#{res_code},sysdate,#{rev_score},#{rev_title},#{rev_content})
+	</insert>
+	
+	 
+	<!-- 리뷰 포토 등록 -->
+<!-- 	<insert id="revPhotoInsert"
+		parameterType="kr.or.ddit.middle.vo.View_ReviewVO">
+		insert into Photo (PT_CODE, PT_TYPE, PT_FILE)
+		values('J' ||
+		lpad(PH_seq.nextval,10,'0'),'리뷰',#{PT_FILE})
+	</insert>
+ -->
+
+	<!-- 포토리뷰 여부 확인 -->
+	<select id="photoRevCheck"
+		resultType="kr.or.ddit.middle.vo.View_ReviewVO">
+		select count(*) imgecnt from review r, photo p
+		where r.rev_code = p.pt_file and r.rev_code = #{rev_code}
+	</select>
+
+	<!-- 마일리지 지급 -->
+	<insert id="mileInsert"
+		parameterType="kr.or.ddit.middle.vo.MileageVO">
+		insert into MILEAGE (MIL_CODE, MIL_RESAMOUNT,
+		MIL_USEAMOUNT, MEM_ID)
+		values('ML23' ||
+		lpad(mil_seq.nextval,5,'0'),#{mil_resamount},#{mil_useamount},
+		#{MEM_ID})
+	</insert>
+
+	<select id="GBDetailList" parameterType="String"
+		resultType="kr.or.ddit.middle.vo.GroupBuyingVO">
+		select g.GB_CODE, g.GB_CIN, g.GB_COUT, g.GB_RPRICE, g.GB_DPRICE,
+		g.GB_TITLE,g.GB_CONTENT,g.GB_INVEN,g.GB_DATE,m.mem_id,m.mem_name
+		from groupbuying g , member m
+		where m.mem_id = g.mem_id and
+		g.gb_code = #{data}
+	</select>
+
+	<select id="GBList" resultType="kr.or.ddit.middle.vo.GroupBuyingVO">
+		select g.GB_CODE, g.GB_CIN, g.GB_COUT, g.GB_RPRICE, g.GB_DPRICE,
+		g.GB_TITLE,g.GB_CONTENT,g.GB_INVEN,to_char(g.GB_CIN, 'YYYY-MM-DD') gb_cin,to_char(g.GB_COUT, 'YYYY-MM-DD') gb_cout,m.mem_id,m.mem_name
+		from groupbuying g , member m
+		where m.mem_id = g.mem_id
+		
+	</select>
+	
+
+	<select id="totalListCheck" parameterType="kr.or.ddit.middle.vo.Info_ReservVO" resultType="kr.or.ddit.middle.vo.Info_ReservVO">
+	   <![CDATA[
+	     SELECT DISTINCT a.a_code, a.a_name, a.a_addr, a.a_tel, a.a_wnum, a.a_entime,
+	        a.a_extime, a.a_type,
+	        rv.res_code, r.r_code,
+	        (SELECT r.r_price FROM room r WHERE r.a_code = a.a_code AND ROWNUM = 1) AS r_price,
+	        (SELECT COUNT(*) FROM wishlist w WHERE w.a_code = a.a_code AND w.mem_id = #{mem_id}) AS cnt
+	    FROM accommodation a
+	    JOIN room r ON a.a_code = r.a_code
+	    JOIN reservation rv ON rv.r_code = r.r_code
+	    WHERE (rv.res_cin <= TO_DATE('2023/' || #{res_cin}, 'YYYY-MM-DD') AND rv.res_cout >= TO_DATE('2023/' ||#{res_cout}, 'YYYY-MM-DD'))
+	        AND r.r_max > #{r_max}
+	        AND a.a_addr = #{a_addr}
+	    ORDER BY a.a_name
+	    ]]>
+	</select>
+	
+	
+	
+	
+	<!-- 숙박업체별 조회 -->
+	<select id="totalAcCheck" parameterType="kr.or.ddit.middle.vo.Search_AccomVO"
+		resultType="kr.or.ddit.middle.vo.Search_AccomVO">
+		SELECT DISTINCT a.a_code, a.a_name, a.a_addr, a.a_tel, a.a_wnum, a.a_entime,
+		a.a_extime, a.a_type,
+		(SELECT r.r_price FROM room r WHERE r.a_code = a.a_code AND ROWNUM = 1) AS	r_price
+		FROM accommodation a, room r
+		WHERE
+		 a.a_code = r.a_code
+		AND r.r_max >= #{r_max}
+        and a.a_addr = #{a_addr}
+		
+		order by a.a_name
+	</select>
+	
+	<select id="totalUserListCheck"	parameterType="kr.or.ddit.middle.vo.Search_AccomVO" resultType="kr.or.ddit.middle.vo.Search_AccomVO">
+		 <![CDATA[
+		SELECT DISTINCT a.a_code, a.a_name, a.a_addr, a.a_tel, a.a_wnum, a.a_entime,
+		a.a_extime, a.a_type,
+		(SELECT r.r_price FROM room r WHERE r.a_code = a.a_code AND ROWNUM = 1) AS	r_price,
+        (SELECT COUNT(*) FROM wishlist w WHERE w.a_code = a.a_code AND w.mem_id =#{mem_id}) AS cnt
+		FROM accommodation a, room r
+		WHERE a.a_code = r.a_code
+        AND r.r_max >= #{r_max}
+        and a.a_addr = #{a_addr}
+		order by a.a_name
+        ]]>
+	</select>
+	
+	
+<select id="getAccommodationList" parameterType="kr.or.ddit.middle.vo.Search_AccomVO" resultType="kr.or.ddit.middle.vo.Search_AccomVO">
+   <![CDATA[
+    SELECT a.a_code, 
+           a.a_name,
+           a.a_addr, 
+           a.a_wnum,
+           (SELECT r.r_price FROM room r WHERE r.a_code = a.a_code AND ROWNUM = 1) AS r_price,
+           (SELECT COUNT(*) FROM wishlist w WHERE w.a_code = a.a_code AND w.mem_id = #{MEM_ID}) AS cnt
+    FROM accommodation a
+    JOIN room r ON a.a_code = r.a_code
+    JOIN reservation rv ON r.r_code = rv.r_code
+    WHERE a.a_addr = #{a_addr}
+    AND r.r_max > #{r_max}
+    AND rv.res_cin <= TO_DATE(#{res_cin}, 'YYYY-MM-DD') AND rv.res_cout >= TO_DATE(#{res_cout}, 'YYYY-MM-DD')
+    GROUP BY a.a_code, a.a_name, a.a_addr, a.a_wnum, r.r_price,r.r_code,rv.res_code
+    ORDER BY a.a_name;
+    ]]>
+</select>
+
+<!-- 관리자 숙박업체 목록 조회 -->
+    <select id="adminAccCheck" resultType="kr.or.ddit.middle.vo.AccommodationVO">
+		SELECT A_CODE, A_NAME, A_ADDR, A_TEL, A_TYPE 
+		FROM ACCOMMODATION
+	</select>
+	
+	<!-- 가장 최근의 a_code 조회 -->
+	<select id="aCodeCheck" resultType="String">
+		SELECT a_code
+			FROM (
+		    SELECT a_code
+		    FROM accommodation
+		    ORDER BY a_code DESC
+			) WHERE ROWNUM = 1
+	</select>
+	
+	<!-- 가장 최근의 r_code 조회 -->
+	<select id="roomCodeCheck" resultType="String">
+		SELECT r_code
+		FROM (
+		    SELECT r_code
+		    FROM room
+		    ORDER BY r_code DESC
+		) WHERE ROWNUM = 1
+	</select>
+	
+	<!-- 가장 최근의 rev_code 조회 -->
+	<select id="revCodeCheck" resultType="String">
+		select rev_code from (select rev_code from review order by rev_code desc)where rownum=1
+	</select>
+	
+</mapper>

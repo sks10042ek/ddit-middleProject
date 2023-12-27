@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 이 문서는 myBatis에서 처리할 SQL문을 작성하는 문서입니다. -->
+<!DOCTYPE mapper 
+	PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="Member">
+
+	<!-- 로그인 할때 회원 정보 유무 확인 -->
+	<select id="checkInfo" parameterType="MemberVO" resultType="int">
+		select count(*)
+		from member
+		where mem_id=#{mem_id}
+		and
+		mem_pass=#{mem_pass}
+	</select>
+
+	<!-- 아이디 찾기 -->
+	<select id="findId" parameterType="String" resultType="String">
+		select
+		mem_id
+		from member
+		where mem_email=#{mem_email}
+	</select>
+
+
+	<!-- 비번 찾기 -->
+	<select id="findPass" parameterType="MemberVO" resultType="int">
+		select count(*)
+		from member
+		where mem_id=#{mem_id} and
+		mem_email=#{mem_email}
+	</select>
+
+	<!-- 비번 변경 초기 비번 0000세팅 -->
+	<update id="updatePass" parameterType="String">
+		update member set
+		mem_pass='0000'
+		where mem_id=#{mem_id}
+	</update>
+
+	<!-- 회원가입 -->
+	<insert id="joinMember" parameterType="MemberVO">
+		insert into member
+		(mem_id, mem_pass, mem_name, mem_email, mem_tel,
+		mem_birth, mem_gender,
+		mem_code, mem_mil, mem_photo)
+		values (#{mem_id}, #{mem_pass},
+		#{mem_name}, #{mem_email}, #{mem_tel},
+		#{mem_birth},
+		#{mem_gender},
+		'회원', 1000, null)
+	</insert>
+
+	<!-- 아이디 중복검사 -->
+	<select id="checkDuple" parameterType="String" resultType="int">
+		select count(*)
+		from member
+		where MEM_ID=#{mem_id}
+	</select>
+
+	<!-- 회원정보 조회 -->
+	<select id="memberInfo" parameterType="String"
+		resultType="MemberVO">
+		select mem_id, mem_pass, mem_name, mem_email, mem_tel,
+		to_char(mem_birth, 'yyyy-mm-dd') mem_birth, mem_gender, mem_mil,
+		mem_photo
+		from member
+		where mem_id=#{mem_id}
+	</select>
+
+	<!-- 회원정보 수정 -->
+	<update id="memberInfoUpdate" parameterType="MemberVO">
+		update member
+		set
+		mem_email =#{mem_email}, mem_tel=#{mem_tel}, mem_birth=#{mem_birth},
+		mem_photo= #{mem_photo}
+		where
+		mem_id=#{mem_id}
+	</update>
+
+	<!-- 비밀번호 변경 -->
+	<update id="memberPassUpdate" parameterType="MemberVO">
+		update member
+		set
+		mem_pass=#{mem_pass}
+		where mem_id = #{mem_id}
+	</update>
+
+	<!-- 프로필 사진 업로드 -->
+	<update id="memberPhotoUpload" parameterType="MemberVO">
+		update member set
+		mem_photo=#{mem_photo}
+		memberPhotoUpload
+		where mem_id=#{mem_id}
+	</update>
+
+	<!-- 위시리스트 조회 -->
+	<select id="wishListCheck" parameterType="String"
+		resultType="kr.or.ddit.middle.vo.View_PhotoVO">
+			SELECT a.a_code, a.A_NAME, b.pt_file, a.a_addr, (SELECT r.r_price FROM room r WHERE r.a_code = a.a_code AND ROWNUM = 1) r_price
+			FROM ACCOMMODATION a
+			INNER JOIN PHOTO b ON SUBSTR(a.A_CODE, 1) = SUBSTR(b.PT_file, 1, 10)
+			INNER JOIN WISHLIST c ON a.a_code = c.a_code
+			where b.pt_file like '%_1' and b.pt_type='숙소' and c.mem_id=#{mem_id}
+	</select>
+
+
+	<!-- 예약리스트 조회 ==> 체크인날짜, 시간, 숙소이름, 위치, 숙박기간, 예약상태 -->
+	<select id="resInfoCheck" parameterType="String"
+		resultType="kr.or.ddit.middle.vo.Info_ReservVO">
+		
+		SELECT
+		TO_CHAR(r.res_cin, 'MM/DD DY') AS res_cin,
+		TO_CHAR(r.res_cout, 'MM/DD DY') AS res_cout,
+		ac.a_entime,ac.a_extime,ac.a_name,ac.a_addr,
+		r.res_status,r.res_code, p.pay_no, ac.a_code, 
+        rm.r_type, p.pay_price, r.res_memo, p.PAY_METHOD,
+        TO_CHAR(p.PAY_DATE, 'MM/DD DY') PAY_DATE, m.mem_name, m.mem_tel
+		FROM reservation r, room rm, accommodation ac, payment p, MEMBER m
+		WHERE rm.a_code = ac.a_code
+		AND rm.r_code = r.r_code
+        and p.res_code = r.res_code and
+        r.mem_id=m.mem_id
+		AND r.MEM_ID = #{mem_id}
+		order by res_code desc
+	</select>
+
+
+	<!-- 미사용 보유 쿠폰 조회 -->
+	<select id="couponCheck" parameterType="String"
+		resultType="kr.or.ddit.middle.vo.Info_CouponVO">
+		select cp.co_code,
+		c.co_name, c.co_rate, to_char(cp.cp_date,'YYYY.MM.DD') cp_date
+		from cp_having cp,
+		coupon c
+		where cp.co_code = c.co_code
+		and cp.cp_use=1
+		and
+		cp.mem_id=#{mem_id}
+	</select>
+
+	<!-- 보유 쿠폰 전체 조회 -->
+	<select id="couponTotalCheck" parameterType="String"
+		resultType="kr.or.ddit.middle.vo.Info_CouponVO">
+		select cp.co_code,
+		c.co_name, c.co_rate,CP.CP_USE,to_char(cp.cp_date,'YYYY.MM.DD') cp_date, to_char(cp.cp_date+30,'YYYY.MM.DD') cp_validity
+		from
+		cp_having cp,
+		coupon c
+		where cp.co_code = c.co_code
+
+		and
+		cp.mem_id=#{mem_id}
+		order by CP.CP_USE desc
+	</select>
+
+
+
+	<!-- 예약내역상세 조회 -->
+	<select id="resDetailCheck" parameterType="kr.or.ddit.middle.vo.Info_ReservVO"
+		resultType="kr.or.ddit.middle.vo.Info_ReservVO">
+
+		SELECT  A.A_CODE,A.A_NAME,A.A_ADDR, M.MEM_NAME,M.MEM_TEL, m.mem_email, to_char(R.RES_CIN,'MM/DD') res_cin ,A.A_ENTIME, Rm.r_type,
+        to_char(R.RES_COUT,'MM/DD')res_cout ,A_EXTIME, R.RES_MEMO,R.RES_STATUS, P.PAY_PRICE, P.PAY_METHOD ,p.pay_date,p.pay_no,r.res_memo, 
+        rm.r_price, p.mil_use, p.cou_use
+		FROM  RESERVATION R, ROOM RM, ACCOMMODATION A, PAYMENT P , MEMBER M
+		WHERE R.MEM_ID=#{mem_id} AND R.R_CODE = RM.R_CODE AND RM.A_CODE = A.A_CODE 
+		AND R.RES_CODE=P.RES_CODE AND R.MEM_ID = M.MEM_ID and r.res_code = #{res_code}
+
+	</select>
+
+
+
+	<!-- 위시리스트 유무확인 -->
+	<select id="wishValueCheck"
+		parameterType="kr.or.ddit.middle.vo.WishListVO" resultType="int">
+		select
+		count(*)
+		from wishlist
+		where mem_id=#{mem_id} and a_code=#{a_code}
+	</select>
+
+
+	<!-- 위시리스트 삭제 -->
+	<delete id="wishListDelete"
+		parameterType="kr.or.ddit.middle.vo.WishListVO">
+		delete from wishlist
+		where mem_id=#{mem_id} and
+		a_code=#{a_code}
+	</delete>
+
+
+	<!-- 위시리스트 등록 -->
+	<insert id="wishListInsert"
+		parameterType="kr.or.ddit.middle.vo.WishListVO">
+		insert into wishlist (mem_id, a_code) values(#{mem_id},
+		#{a_code})
+	</insert>
+
+	<!-- 전체 마일리지 정보 조회 -->
+	<select id="mileageInfo" parameterType="String"
+		resultType="kr.or.ddit.middle.vo.MileageVO">
+		select mil_code, mem_id, mil_his, mil_amt,
+		mil_total,
+		mil_date
+		from mileage
+		where mem_id=#{mem_id} 
+		order by mil_date desc
+		
+	</select>
+
+	<!-- 잔여마일리지 조회 -->
+	<select id="mileageTotal" parameterType="String"
+		resultType="String">
+		select a.* from (select mil_total from mileage
+		where mem_id=#{mem_id} order by mil_date desc) a where rownum=1
+	</select>
+
+	<!-- 마일리지 적립 / 사용 -->
+	<insert id="mileageInsert"
+		parameterType="kr.or.ddit.middle.vo.MileageVO">
+		insert into MILEAGE (mil_code, mem_id, mil_his, mil_amt, mil_total, mil_date)
+    	values('ML23' || lpad(mil_seq.nextval,5,'0'), #{mem_id}, #{mil_his}, #{mil_amt},
+    	(select sum(mil_amt) from mileage where mem_id = #{mem_id}) + #{mil_amt}, sysdate)
+    </insert>
+    
+     <!-- 관리자 회원 목록 조회 -->
+    <select id="adminMemCheck" resultType="kr.or.ddit.middle.vo.MemberVO">
+		SELECT MEM_CODE, MEM_ID, MEM_NAME, MEM_EMAIL, MEM_TEL, to_char(MEM_BIRTH,'YYYY-MM-DD') MEM_BIRTH, MEM_GENDER, MEM_MIL 
+		FROM MEMBER
+	</select>
+	
+	<!-- 관리자 회원 삭제 -->
+	<delete id="memberDelete" parameterType="kr.or.ddit.middle.vo.MemberVO">
+		delete from member where mem_id=#{mem_id}
+	</delete>
+
+
+</mapper>

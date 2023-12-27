@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+ "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="Board">
+
+	<!-- 공지사항 등록 -->
+	<insert id="BoardInsert" parameterType="kr.or.ddit.middle.vo.BoardVO">
+		INSERT INTO BOARD (BO_CODE, BO_TYPE, BO_TITLE, BO_CONTENT, BO_DATE, MEM_ID)
+		VALUES (('JJBO23' || LPAD(BO_SEQ.NEXTVAL,4,'0')), #{bo_type}, #{bo_title},
+		#{bo_content},sysdate, #{mem_id})
+	</insert>
+
+	<!-- 공지사항 목록 조회 -->
+	<select id="noticeCheck" resultType="kr.or.ddit.middle.vo.View_BoardVO">
+		SELECT B.BO_CODE, B.BO_TYPE, B.BO_TITLE, B.BO_CONTENT, to_char(B.bo_date,'YYYY-MM-DD') bo_date, M.MEM_CODE
+		FROM BOARD B, MEMBER M
+		WHERE B.MEM_ID=M.MEM_ID AND BO_TYPE = '공지사항'
+	</select>
+	
+	<!-- 공지사항 내용 조회 -->
+	<select id="noticeDetail" parameterType="String" resultType="kr.or.ddit.middle.vo.View_BoardVO">
+		select BO_CODE, BO_TYPE, BO_TITLE, BO_CONTENT, to_char(bo_date,'YYYY-MM-DD') bo_date, MEM_ID from board where bo_code = #{bo_code}
+	</select>
+	
+	
+	<!-- 공지사항 삭제 -->
+<!-- 	<delete id="noticeDelete" parameterType="String">
+		DELETE FROM BOARD WHERE BO_CODE =#{bo_code}
+	</delete> -->
+	
+	<!-- 공지사항 수정 -->
+	<update id="selectNoticeUpdate" parameterType="kr.or.ddit.middle.vo.BoardVO">
+		UPDATE BOARD SET BO_TITLE=#{bo_title}, BO_CONTENT=#{bo_content}, BO_DATE=sysdate       
+		WHERE BO_CODE=#{bo_code}
+	</update>
+
+	<!-- 1:1문의 목록 조회 -->
+	<select id="inquiryCheck" resultType="kr.or.ddit.middle.vo.View_BoardVO">
+		SELECT B.BO_CODE, B.BO_TYPE, B.BO_TITLE, B.BO_CONTENT, to_char(B.bo_date,'YYYY-MM-DD') bo_date, M.mem_id
+		FROM BOARD B, MEMBER M
+		WHERE B.MEM_ID=M.MEM_ID AND BO_TYPE = '1:1문의'
+		order by b.bo_date desc
+	</select>
+	
+	<!-- 1:1문의 내용 조회 -->
+	<select id="inquiryDetail" parameterType="String" resultType="kr.or.ddit.middle.vo.View_BoardVO">
+		select BO_CODE, BO_TYPE, BO_TITLE, BO_CONTENT, to_char(bo_date,'YYYY-MM-DD') bo_date, MEM_ID from board where bo_code = #{bo_code}
+	</select>
+	
+	<!-- 문의게시판 수정 -->
+	<update id="inquiryUpdate" parameterType="kr.or.ddit.middle.vo.View_BoardVO">
+		UPDATE BOARD SET BO_TITLE=#{bo_title}, BO_CONTENT=#{bo_content}, BO_DATE=sysdate
+		WHERE BO_CODE=#{bo_code} AND BO_TYPE = '1:1문의'
+	</update>
+	
+	<!-- 문의 삭제 -->
+	<delete id="inquiryDelete" parameterType="kr.or.ddit.middle.vo.BoardVO">
+		delete from board where bo_code=#{bo_code} and bo_type='1:1문의'
+	</delete>
+	
+	<!-- 관리자 게시판 목록 조회 -->
+	<select id="adminBoardCheck" resultType="kr.or.ddit.middle.vo.View_BoardVO">
+		SELECT BO_CODE, BO_TYPE, BO_TITLE, BO_CONTENT, to_char(bo_date,'YYYY-MM-DD') bo_date, mem_id
+		FROM BOARD
+	</select>
+	
+	<!-- 관리자 공지사항 글 삭제 -->
+	<delete id="noticeDelete" parameterType="kr.or.ddit.middle.vo.BoardVO">
+		delete from board where bo_code=#{bo_code} and bo_type='공지사항'
+	</delete>
+	
+	<!-- 댓글 등록 -->
+	<insert id="commentInsert" parameterType="kr.or.ddit.middle.vo.ComentVO">
+		INSERT INTO COMENT (CO_CODE, BO_CODE, CO_CONTENT, MEM_NAME)
+		VALUES ('JJCO23' || LPAD(COM_SEQ.NEXTVAL,4,'0'), #{bo_code}, #{co_content}, #{mem_name})
+	</insert>
+
+	<!-- 댓글 조회 -->
+	<select id="commentCheck" parameterType="String" resultType="kr.or.ddit.middle.vo.ComentVO">
+		SELECT 
+    		ROW_NUMBER() OVER (ORDER BY c.co_code ASC) AS rowNumber,
+    		c.CO_CODE, c.BO_CODE, c.CO_CONTENT, b.mem_id, b.bo_date, c.mem_name
+			FROM 
+			    COMENT c
+			JOIN 
+			    board b ON c.bo_code = b.bo_code
+			WHERE 
+			    c.BO_CODE = #{bo_code}
+			ORDER BY 
+   				 c.co_code ASC
+	</select>
+	
+	<!-- 댓글 수정 -->
+	<update id="CommentUpdate" parameterType="kr.or.ddit.middle.vo.ComentVO">
+		UPDATE coment SET co_content = #{co_content} WHERE co_code = #{co_code}
+	</update>
+	
+	<!-- 댓글삭제 -->
+	<delete id="CommentDelete" parameterType="String">
+		 DELETE FROM coment WHERE co_code = #{co_code}
+	</delete>
+	
+	<!-- 이벤트게시판 조회 -->
+	<select id="eventCheck" resultType="kr.or.ddit.middle.vo.View_BoardVO">
+		SELECT B.BO_CODE, B.BO_TYPE, B.BO_TITLE, B.BO_CONTENT, B.BO_DATE, M.MEM_NAME, M.MEM_ID
+		FROM BOARD B, MEMBER M
+		WHERE B.MEM_ID=M.MEM_ID AND BO_TYPE = '이벤트'
+	</select>
+	
+	<!-- 이벤트게시판 글 수정 -->
+	<update id="eventUpdate" parameterType="kr.or.ddit.middle.vo.BoardVO">
+		UPDATE BOARD SET BO_TITLE=#{bo_title}, BO_CONTENT=#{bo_content}, BO_DATE=sysdate
+		WHERE BO_CODE=#{bo_code} AND BO_TYPE = '이벤트'
+	</update>
+
+	<!-- 이벤트 게시글 삭제 -->
+	<delete id="eventDelete" parameterType="String">
+		delete from board where bo_code=#{bo_code} and bo_type='이벤트'
+	</delete>
+	
+	<!-- 공동구매 등록 -->
+	<insert id="gbInsert" parameterType="kr.or.ddit.middle.vo.GroupBuyingVO">
+		insert into GROUPBUYING (GB_CODE, MEM_ID, GB_TITLE, GB_CONTENT, GB_INVEN, GB_DATE)
+		values('JJGB23' || lpad(GB_seq.nextval,4,'0'),#{mem_id},#{gb_title},#{gb_content},#{gb_inven},sysdate) 
+	</insert>
+	
+	<!-- 공동구매 조회 -->
+	<select id="gbCheck" resultType="kr.or.ddit.middle.vo.View_GrBoardVO">
+		SELECT GB.GB_CODE, GB.MEM_ID, GB.GB_TITLE, GB.GB_CONTENT, GB.GB_INVEN, GB.GB_DATE, M.MEM_NAME, M.MEM_ID
+		FROM GROUPBUYING GB, MEMBER M
+		WHERE GB.MEM_ID=M.MEM_ID
+	</select>
+	
+	<!-- 공동구매 수정 -->
+	<update id="gbUpdate" parameterType="kr.or.ddit.middle.vo.GroupBuyingVO">
+		UPDATE GROUPBUYING SET GB_TITLE=#{gb_title}, GB_CONTENT=#{gb_content}
+		WHERE GB_CODE=#{gb_code}
+	</update>
+	
+	<!-- 공동구매 삭제 -->
+	<delete id="gbDelete" parameterType="String">
+		DELETE FROM GROUPBUYING WHERE GB_CODE=#{gb_code};
+	</delete>
+	
+	<!-- 공동구매 채팅내역 불러오기 -->
+	<select id="gbChatHis" parameterType="String" resultType="kr.or.ddit.middle.vo.Chat_HisVO">
+		select MEM_ID, CH_CODE, CH_FILENAME from CHAT_HIS where CH_CODE=#{ch_code} 
+	</select>
+	
+	<!-- 공동구매 채팅내역 저장 -->
+	<insert id="gbChatInsert" parameterType="kr.or.ddit.middle.vo.Chat_HisVO">
+		insert into chat_his values(#{mem_id},#{ch_code},#{ch_filename})
+	</insert>
+	
+	<!-- 공동구매 채팅방 나가기-->
+	<delete id="gbchatDelete" parameterType="kr.or.ddit.middle.vo.Chat_HisVO">
+		delete from chat_his 
+		where ch_code = #{ch_code} and mem_id =#{mem_id}
+	</delete>
+	
+	<!-- 양도마켓 조회-->
+	<select id="hoMarketCheck" resultType="kr.or.ddit.middle.vo.View_BoardVO">
+		SELECT B.BO_CODE, B.BO_TYPE, B.BO_TITLE, B.BO_CONTENT, B.BO_DATE, M.MEM_NAME, M.MEM_ID 
+		FROM BOARD B, MEMBER M
+		WHERE B.MEM_ID=M.MEM_ID AND BO_TYPE = '양도마켓'
+	</select>
+	
+	<!-- 양도마켓 게시글 수정 -->
+	<update id="hoMarketUpdate" parameterType="kr.or.ddit.middle.vo.BoardVO">
+		UPDATE BOARD SET BO_TITLE=#{bo_title},BO_CONTENT=#{bo_content}            
+		WHERE BO_CODE=#{bo_code} AND BO_TYPE = '양도마켓'
+	</update>
+	
+	<!-- 양도머켓 게시글 삭제 -->
+	<delete id="hoMarketDelete" parameterType="kr.or.ddit.middle.vo.BoardVO">
+		DELETE FROM BOARD                                   
+		WHERE BO_CODE = #{bo_code} AND BO_TYPE = #{bo_type}
+	</delete>
+	
+	<!-- 출석체크 등록 -->
+	<insert id="attInsert" parameterType="String">
+	insert into attendance(mem_id, att_date)       
+	values(#{mem_id}, sysdate)
+	</insert>
+	
+	<!-- 출석체크 조회 -->
+	<select id="attCheck" parameterType="String">
+	select mem_id, att_date                        
+	from attendance
+	where mem_id=#{mem_id} 
+	</select>
+	
+	<!-- 쿠폰 등록 -->
+	<insert id="couponInsert" parameterType="kr.or.ddit.middle.vo.CouponVO">
+	insert into cp_having (co_code, mem_id, cp_use, cp_date)   
+	values(#{co_code}, #{mem_id}, #{cp_use},sysdate)
+	</insert>
+	
+	<!-- 룰렛 쿠폰 여부 조회 -->
+	<select id="rCouponCheck" parameterType="String" resultType="int">
+	SELECT count(*) 
+	FROM cp_having 
+	WHERE co_code='CO004' and TO_DATE(cp_date, 'YY/MM/DD') = TRUNC(SYSDATE) 
+	and mem_id = #{mem_id}
+	</select>
+	
+	
+
+</mapper>
